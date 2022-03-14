@@ -68,7 +68,7 @@ WeatherNo is a cross-platform weather app for both Android and IOS written in Fl
 
 ## Getting Started
 
-To start with the project, you can simply download the [apk]() here or you can follow along the instructions to
+To start with the project, you can simply download the [apk](https://github.com/WarMac4964/WeatherNo/raw/master/build/app/outputs/flutter-apk/app.apk) here or you can follow along the instructions to
 download and run the whole project in emulator.
 
 1. Clone the repo
