@@ -92,9 +92,9 @@ download and run the whole project in emulator.
 
 ## Roadmap
 
-- Adding end-to-end encryption.
-- Allowing users to share their locations, photos, videos and audio files.
-- Addition of story feature.
+- Adding AQI report screen
+- Adding detailed daily forecast screen
+- Adding location search option
 
 See the [open issues](https://github.com/WarMac4964/WeatherNo/issues) for a list of proposed features (and known issues).
 
