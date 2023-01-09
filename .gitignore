@@ -1,1 +1,30 @@
+*.class
+*.log
+*.pyc
 .env
+*.env
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+/build
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Exceptions to above rules.
+!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages

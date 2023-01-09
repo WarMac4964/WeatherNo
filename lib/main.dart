@@ -4,7 +4,6 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:geocode/geocode.dart';
 import 'package:weatherno/constant.dart';
 import 'package:weatherno/weatherdata/weatherdata.dart';
 
@@ -19,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'WeatherNo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -66,12 +65,12 @@ class EntryPage extends StatelessWidget {
           future: weatherData.fetchWeatherData(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
-              if (snapshot.data != null) {
-                weatherData = snapshot.data as WeatherData;
-              }
+              weatherData = snapshot.data as WeatherData;
               return homeBlock(screenSize, weatherData);
-            } else {
+            } else if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator.adaptive());
+            } else {
+              return const SizedBox();
             }
           },
         ),
@@ -81,9 +80,8 @@ class EntryPage extends StatelessWidget {
 
   Widget homeBlock(Size screenSize, WeatherData weatherData) {
     DateTime dateTime =
-        DateTime.fromMillisecondsSinceEpoch(int.parse(weatherData.currentWeather?.dateTime.toString() ?? '') * 1000);
+        DateTime.fromMillisecondsSinceEpoch(int.parse((weatherData.currentWeather?.dateTime.toString()) ?? '0') * 1000);
     int lengthHourlyWeather = weatherData.hourlyWeather?.length ?? 0;
-    GeoCode geoCode = GeoCode();
 
     return SingleChildScrollView(
       child: Stack(
@@ -132,33 +130,21 @@ class EntryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 35),
                   Padding(
-                    padding: const EdgeInsets.only(left: 25.0),
-                    child: Row(children: <Widget>[
-                      const Icon(
-                        Icons.location_pin,
-                        color: sunnyOrange,
-                        size: 40,
-                      ),
-                      const SizedBox(width: 10),
-                      FutureBuilder(
-                          future: geoCode.reverseGeocoding(
-                              latitude: double.parse(weatherData.lat.toString()),
-                              longitude: double.parse(weatherData.long.toString())),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.done &&
-                                snapshot.hasData &&
-                                snapshot.data != null) {
-                              Address address = snapshot.data as Address;
-                              return AutoSizeText(
-                                '${address.city?.toLowerCase()},\n${address.countryName}',
-                                style: whiteHeadline2,
-                              );
-                            } else {
-                              return const Text('--');
-                            }
-                          })
-                    ]),
-                  ),
+                      padding: const EdgeInsets.only(left: 25.0),
+                      child: Row(children: <Widget>[
+                        const Icon(
+                          Icons.location_pin,
+                          color: sunnyOrange,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          child: AutoSizeText(
+                            '${weatherData.city},\n${weatherData.country}',
+                            style: whiteHeadline2,
+                          ),
+                        ),
+                      ])),
                   const SizedBox(height: 25),
                   Padding(
                     padding: const EdgeInsets.only(left: 35),
