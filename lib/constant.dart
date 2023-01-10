@@ -32,3 +32,17 @@ TextStyle whiteHeadline3 = GoogleFonts.poppins(color: constantWhite, fontWeight:
 TextStyle whiteHeadline4 = GoogleFonts.poppins(color: constantWhite, fontWeight: FontWeight.w500, fontSize: 12);
 
 TextStyle fadedHeadline3 = GoogleFonts.poppins(color: fadedWhite, fontWeight: FontWeight.w500, fontSize: 15);
+
+void showUpdateStatus(BuildContext context, String content, {bool isError = false}) {
+  ThemeData theme = Theme.of(context);
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        content,
+        style: theme.textTheme.bodyText2,
+        overflow: TextOverflow.visible,
+        maxLines: 2,
+      ),
+      backgroundColor: sunnyOrange,
+      behavior: SnackBarBehavior.floating,
+      width: 250));
+}

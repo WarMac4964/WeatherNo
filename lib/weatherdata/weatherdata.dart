@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'package:location/location.dart' as location_pak;
+import 'package:weatherno/constant.dart';
 
 num kelvinToCelcius(num tempInKelvin) {
   return tempInKelvin - 273.15;
@@ -75,6 +77,7 @@ class WeatherData {
   WeatherParameter? currentWeather;
   List<WeatherParameter>? hourlyWeather;
   List<WeatherParameter>? dailyWeather;
+  String? message;
 
   WeatherData(
       {this.currentWeather,
@@ -85,7 +88,8 @@ class WeatherData {
       this.timeZone,
       this.timeZoneOffset,
       this.country,
-      this.city});
+      this.city,
+      this.message});
 
   Map<int, String> monthToMonthName = {
     1: "January",
@@ -135,9 +139,12 @@ class WeatherData {
         hourlyWeather: hourly);
   }
 
-  Future fetchWeatherData() async {
+  Future fetchWeatherData(BuildContext context) async {
     try {
       location_pak.LocationData location = await requestUserLocation();
+      if (location == null) {
+        throw ('Location not available');
+      }
       List<Placemark> placemarks = await placemarkFromCoordinates(location.latitude ?? 0, location.longitude ?? 0);
       Uri url = Uri.parse(
           "https://api.openweathermap.org/data/2.5/onecall?lat=${location.latitude}&lon=${location.longitude}&appid=${dotenv.env['API_TOKEN']}");
@@ -148,13 +155,16 @@ class WeatherData {
           ..lat = location.latitude
           ..long = location.longitude
           ..city = placemarks.first.locality
-          ..country = placemarks.first.country;
+          ..country = placemarks.first.country
+          ..message = 'Successfully fetched weather details';
+        showUpdateStatus(context, weatherData.message ?? '');
         return weatherData;
       } else {
         throw Exception('Failed to load data');
       }
     } catch (err) {
-      print(err.toString());
+      showUpdateStatus(context, err.toString());
+      return WeatherData(message: err.toString());
     }
   }
 
@@ -181,5 +191,14 @@ class WeatherData {
     }
 
     return await location.getLocation();
+  }
+
+  Future askUserForLocationPermission() async {
+    location_pak.Location location = location_pak.Location();
+    location_pak.PermissionStatus _permissionGranted;
+
+    _permissionGranted = await location.requestPermission();
+
+    return _permissionGranted;
   }
 }

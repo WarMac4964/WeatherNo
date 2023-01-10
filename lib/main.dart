@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:weatherno/constant.dart';
 import 'package:weatherno/weatherdata/weatherdata.dart';
+import 'package:location/location.dart';
 
 void main() async {
   await dotenv.load();
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
 
 class EntryPage extends StatelessWidget {
   EntryPage({Key? key}) : super(key: key);
+  ValueNotifier<bool> rebuildWidget = ValueNotifier(false);
 
   WeatherData weatherData = WeatherData();
 
@@ -60,21 +62,71 @@ class EntryPage extends StatelessWidget {
             text: TextSpan(
                 text: 'Weather', style: orangeHeadline1, children: [TextSpan(text: 'No', style: whiteHeadline1)])),
       ),
-      body: SizedBox(
-        child: FutureBuilder(
-          future: weatherData.fetchWeatherData(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done) {
-              weatherData = snapshot.data as WeatherData;
-              return homeBlock(screenSize, weatherData);
-            } else if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator.adaptive());
-            } else {
-              return const SizedBox();
-            }
-          },
-        ),
-      ),
+      body: ValueListenableBuilder(
+          valueListenable: rebuildWidget,
+          builder: (context, _, __) {
+            return SizedBox(
+              child: FutureBuilder(
+                future: weatherData.fetchWeatherData(context),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    weatherData = snapshot.data as WeatherData;
+                    if (weatherData == null || weatherData.lat == null) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(
+                              child: Text(
+                                'You may need to provide precise location in order to use the application, Ignore if already given',
+                                style: whiteHeadline3,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                    onPressed: () async {
+                                      PermissionStatus response = await weatherData.askUserForLocationPermission();
+                                      showUpdateStatus(
+                                          context, 'Location permission: ${response.toString().split('.')[1]}');
+                                    },
+                                    child: Text(
+                                      'Check permission',
+                                      style: whiteHeadline4,
+                                    )),
+                                const SizedBox(width: 20),
+                                ElevatedButton(
+                                    onPressed: () async {
+                                      rebuildWidget.value = !rebuildWidget.value;
+                                    },
+                                    child: Text(
+                                      'Refresh',
+                                      style: whiteHeadline4,
+                                    )),
+                              ],
+                            )
+                          ],
+                        ),
+                      );
+                    }
+                    return RefreshIndicator(
+                        onRefresh: () async {
+                          rebuildWidget.value = !rebuildWidget.value;
+                        },
+                        child: homeBlock(screenSize, weatherData));
+                  } else if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator.adaptive());
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
+            );
+          }),
     );
   }
 
