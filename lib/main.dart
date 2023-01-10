@@ -4,9 +4,9 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:geocode/geocode.dart';
 import 'package:weatherno/constant.dart';
 import 'package:weatherno/weatherdata/weatherdata.dart';
+import 'package:location/location.dart';
 
 void main() async {
   await dotenv.load();
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'WeatherNo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -31,6 +31,7 @@ class MyApp extends StatelessWidget {
 
 class EntryPage extends StatelessWidget {
   EntryPage({Key? key}) : super(key: key);
+  ValueNotifier<bool> rebuildWidget = ValueNotifier(false);
 
   WeatherData weatherData = WeatherData();
 
@@ -61,29 +62,78 @@ class EntryPage extends StatelessWidget {
             text: TextSpan(
                 text: 'Weather', style: orangeHeadline1, children: [TextSpan(text: 'No', style: whiteHeadline1)])),
       ),
-      body: SizedBox(
-        child: FutureBuilder(
-          future: weatherData.fetchWeatherData(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done) {
-              if (snapshot.data != null) {
-                weatherData = snapshot.data as WeatherData;
-              }
-              return homeBlock(screenSize, weatherData);
-            } else {
-              return const Center(child: CircularProgressIndicator.adaptive());
-            }
-          },
-        ),
-      ),
+      body: ValueListenableBuilder(
+          valueListenable: rebuildWidget,
+          builder: (context, _, __) {
+            return SizedBox(
+              child: FutureBuilder(
+                future: weatherData.fetchWeatherData(context),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done) {
+                    weatherData = snapshot.data as WeatherData;
+                    if (weatherData == null || weatherData.lat == null) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(
+                              child: Text(
+                                'You may need to provide precise location in order to use the application, Ignore if already given',
+                                style: whiteHeadline3,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                    onPressed: () async {
+                                      PermissionStatus response = await weatherData.askUserForLocationPermission();
+                                      showUpdateStatus(
+                                          context, 'Location permission: ${response.toString().split('.')[1]}');
+                                    },
+                                    child: Text(
+                                      'Check permission',
+                                      style: whiteHeadline4,
+                                    )),
+                                const SizedBox(width: 20),
+                                ElevatedButton(
+                                    onPressed: () async {
+                                      rebuildWidget.value = !rebuildWidget.value;
+                                    },
+                                    child: Text(
+                                      'Refresh',
+                                      style: whiteHeadline4,
+                                    )),
+                              ],
+                            )
+                          ],
+                        ),
+                      );
+                    }
+                    return RefreshIndicator(
+                        onRefresh: () async {
+                          rebuildWidget.value = !rebuildWidget.value;
+                        },
+                        child: homeBlock(screenSize, weatherData));
+                  } else if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator.adaptive());
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
+            );
+          }),
     );
   }
 
   Widget homeBlock(Size screenSize, WeatherData weatherData) {
     DateTime dateTime =
-        DateTime.fromMillisecondsSinceEpoch(int.parse(weatherData.currentWeather?.dateTime.toString() ?? '') * 1000);
+        DateTime.fromMillisecondsSinceEpoch(int.parse((weatherData.currentWeather?.dateTime.toString()) ?? '0') * 1000);
     int lengthHourlyWeather = weatherData.hourlyWeather?.length ?? 0;
-    GeoCode geoCode = GeoCode();
 
     return SingleChildScrollView(
       child: Stack(
@@ -132,33 +182,21 @@ class EntryPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 35),
                   Padding(
-                    padding: const EdgeInsets.only(left: 25.0),
-                    child: Row(children: <Widget>[
-                      const Icon(
-                        Icons.location_pin,
-                        color: sunnyOrange,
-                        size: 40,
-                      ),
-                      const SizedBox(width: 10),
-                      FutureBuilder(
-                          future: geoCode.reverseGeocoding(
-                              latitude: double.parse(weatherData.lat.toString()),
-                              longitude: double.parse(weatherData.long.toString())),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.done &&
-                                snapshot.hasData &&
-                                snapshot.data != null) {
-                              Address address = snapshot.data as Address;
-                              return AutoSizeText(
-                                '${address.city?.toLowerCase()},\n${address.countryName}',
-                                style: whiteHeadline2,
-                              );
-                            } else {
-                              return const Text('--');
-                            }
-                          })
-                    ]),
-                  ),
+                      padding: const EdgeInsets.only(left: 25.0),
+                      child: Row(children: <Widget>[
+                        const Icon(
+                          Icons.location_pin,
+                          color: sunnyOrange,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          child: AutoSizeText(
+                            '${weatherData.city},\n${weatherData.country}',
+                            style: whiteHeadline2,
+                          ),
+                        ),
+                      ])),
                   const SizedBox(height: 25),
                   Padding(
                     padding: const EdgeInsets.only(left: 35),

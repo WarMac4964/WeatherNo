@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
-import 'package:location/location.dart';
+import 'package:location/location.dart' as location_pak;
+import 'package:weatherno/constant.dart';
 
 num kelvinToCelcius(num tempInKelvin) {
   return tempInKelvin - 273.15;
@@ -69,9 +72,12 @@ class WeatherData {
   num? long;
   String? timeZone;
   num? timeZoneOffset;
+  String? country;
+  String? city;
   WeatherParameter? currentWeather;
   List<WeatherParameter>? hourlyWeather;
   List<WeatherParameter>? dailyWeather;
+  String? message;
 
   WeatherData(
       {this.currentWeather,
@@ -80,7 +86,10 @@ class WeatherData {
       this.lat,
       this.long,
       this.timeZone,
-      this.timeZoneOffset});
+      this.timeZoneOffset,
+      this.country,
+      this.city,
+      this.message});
 
   Map<int, String> monthToMonthName = {
     1: "January",
@@ -130,26 +139,40 @@ class WeatherData {
         hourlyWeather: hourly);
   }
 
-  Future fetchWeatherData() async {
-    LocationData? location = await requestUserLocation();
-    Uri url = Uri.parse(
-        "https://api.openweathermap.org/data/2.5/onecall?lat=${location?.latitude}&lon=${location?.longitude}&appid=${dotenv.get('API_TOKEN', fallback: 'Api key not found')}");
+  Future fetchWeatherData(BuildContext context) async {
+    try {
+      location_pak.LocationData location = await requestUserLocation();
+      if (location == null) {
+        throw ('Location not available');
+      }
+      List<Placemark> placemarks = await placemarkFromCoordinates(location.latitude ?? 0, location.longitude ?? 0);
+      Uri url = Uri.parse(
+          "https://api.openweathermap.org/data/2.5/onecall?lat=${location.latitude}&lon=${location.longitude}&appid=${dotenv.env['API_TOKEN']}");
 
-    http.Response response = await http.get(url);
-    if (response.statusCode == 200) {
-      WeatherData weatherData = WeatherData.fromJson(jsonDecode(response.body));
-
-      return weatherData;
-    } else {
-      throw Exception('Failed to load data');
+      http.Response response = await http.get(url);
+      if (response.statusCode == 200) {
+        WeatherData weatherData = WeatherData.fromJson(jsonDecode(response.body))
+          ..lat = location.latitude
+          ..long = location.longitude
+          ..city = placemarks.first.locality
+          ..country = placemarks.first.country
+          ..message = 'Successfully fetched weather details';
+        showUpdateStatus(context, weatherData.message ?? '');
+        return weatherData;
+      } else {
+        throw Exception('Failed to load data');
+      }
+    } catch (err) {
+      showUpdateStatus(context, err.toString());
+      return WeatherData(message: err.toString());
     }
   }
 
   Future requestUserLocation() async {
-    Location location = Location();
+    location_pak.Location location = location_pak.Location();
 
     bool _serviceEnabled;
-    PermissionStatus _permissionGranted;
+    location_pak.PermissionStatus _permissionGranted;
 
     _serviceEnabled = await location.serviceEnabled();
     if (!_serviceEnabled) {
@@ -160,13 +183,22 @@ class WeatherData {
     }
 
     _permissionGranted = await location.hasPermission();
-    if (_permissionGranted == PermissionStatus.denied) {
+    if (_permissionGranted == location_pak.PermissionStatus.denied) {
       _permissionGranted = await location.requestPermission();
-      if (_permissionGranted != PermissionStatus.granted) {
-        return;
+      if (_permissionGranted != location_pak.PermissionStatus.granted) {
+        throw ('Location permission denied');
       }
     }
 
     return await location.getLocation();
+  }
+
+  Future askUserForLocationPermission() async {
+    location_pak.Location location = location_pak.Location();
+    location_pak.PermissionStatus _permissionGranted;
+
+    _permissionGranted = await location.requestPermission();
+
+    return _permissionGranted;
   }
 }
